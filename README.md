@@ -22,8 +22,17 @@ Repo for study and working in the course of Computer Graphics
 2. Name two disadvantages of the "immediate mode" method of drawing complex objects. 
 In immediate mode rendering, drawing commands are executed immediately as they are called, without storing the geometry or drawing instructions for later use. The geometry is typically recomputed and sent to the graphics card every frame.
 
-- Not efficient to send all the points individually to the graphics card. This becomes a bottleneck. 
-- One disadvantage is that there is no memory of the geometric data. This means that displaying the points again, we would have to go create and display them again.
+- Not efficient to send all the points individually to the graphics card. This becomes a bottleneck. The CPU does all the work and the GPU does nothing!
+- Another disadvantage is that there is no memory of the geometric data. This means that displaying the points again, we would have to go create and display them again.
 
 3. To move the Sierpinski triangle after the points are already in graphics memory, the most efficient approach would be to modify the vertex shader. - This method avoids having to update and re-upload the point data to the GPU, which can be a performance bottleneck, especially for large numbers of points.
+
+## Lecture 4 - Color 
+
+1. On this side is a polygon with 8 knots. How many triangles are needed to draw it?
+One needs at least 6 triangles to fill in the polygon. This is a triangulation and therefore we have # triangles = # vertices - 2.
+
+2. Colors are electromagnetic waves of different frequencies. Whichever has a higher frequency, red or blue?
+Red has a bigger frequency (between 620 and 750 nm) while blue can find only between 450 and 495 nm. 
+
 
