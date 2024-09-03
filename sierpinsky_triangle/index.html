@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebGL Sierpinski Triangle</title>
+</head>
+<body>
+    <canvas id="gl-canvas" width="640" height="480">
+        Your browser doesn't support the HTML5 canvas element
+    </canvas>
+
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 vPosition;
+        uniform vec2 uTranslation;  // New uniform for translation
+        void main() {
+            vec4 translatedPosition = vPosition + vec4(uTranslation, 0.0, 0.0);
+            gl_PointSize = 1.0;
+            gl_Position = translatedPosition;
+        }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform vec4 fColor; 
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+
+    <script src="../Common/webgl-utils.js"></script>
+    <script src="../Common/initShaders.js"></script>
+    <script src="../Common/MV.js"></script>
+    <script src="sierpinsky.js"></script>
+</body>
+</html>
