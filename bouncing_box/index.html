@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
-<title>2D Sierpinski Gasket</title>
+
 
 <script id="vertex-shader" type="x-shader/x-vertex">
-attribute vec4 vPosition;
-uniform float uScale; 
 
-void
-main()
+uniform vec2 boxPos;
+attribute vec4 vPosition;
+
+void main()
 {
-	gl_PointSize = 1.0;
-    gl_Position = vec4(vPosition.xy * uScale, 0.0, 1.0);
+    vec4 t = vPosition;
+    
+    t.xy += boxPos;
+    
+    gl_Position = t;
 }
 </script>
 
 <script id="fragment-shader" type="x-shader/x-fragment">
+
 precision mediump float;
 
+varying vec4 fColor;
 void
 main()
 {
@@ -29,12 +32,9 @@ main()
 <script type="text/javascript" src="../Common/webgl-utils.js"></script>
 <script type="text/javascript" src="../Common/initShaders.js"></script>
 <script type="text/javascript" src="../Common/MV.js"></script>
-<script type="text/javascript" src="sierpinsky.js"></script>
-</head>
+<script type="text/javascript" src="bbox.js"></script>
 
 <body>
-<canvas id="gl-canvas" width="512" height="512">
-Oops ... your browser doesn't support the HTML5 canvas element
-</canvas>
+<canvas id="gl-canvas" width="512" height="512"></canvas>
 </body>
 </html>

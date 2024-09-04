@@ -35,4 +35,11 @@ One needs at least 6 triangles to fill in the polygon. This is a triangulation a
 2. Colors are electromagnetic waves of different frequencies. Whichever has a higher frequency, red or blue?
 Red has a bigger frequency (between 620 and 750 nm) while blue can find only between 450 and 495 nm. 
 
+3. How could the uniform variable be used to change ( scale) size The Sierpinski triangle?
+First we need to use a uniform in the vertex shader in order to be able to scale the triangle. After this, in our JavaScript code we need to get the location of the scale uniform in the shader using the function gl.getUniformLocation(). To finish off, while rendering we need to get transform the scale location we obtained previosuly and transform it into a variable that can be used. 
 
+
+## LEcture 5 - Interactivity
+
+1. In the program rotatingSquare1 , the variable theta is incremented in each iteration. What are the risks involved?
+The main risk would be numeric overflow. In the code theta is a float variable and when increasing it for long enough we can arrive to a large enough number that excedes the maximum possible value of a float. This can lead to unexpected behaviour in calculation, loss of precision, slow computation or even reaching infinity in extreme cases. 
