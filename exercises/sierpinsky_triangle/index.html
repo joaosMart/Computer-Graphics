@@ -6,12 +6,14 @@
 
 <script id="vertex-shader" type="x-shader/x-vertex">
 attribute vec4 vPosition;
-uniform float uScale; 
+uniform float time; 
 
 void
 main()
 {
-	gl_PointSize = 1.0;
+    float uScale;
+    gl_PointSize = 1.0;
+    uScale = 2.0 + 1.7 * sin(time);
     gl_Position = vec4(vPosition.xy * uScale, 0.0, 1.0);
 }
 </script>
@@ -26,9 +28,9 @@ main()
 }
 </script>
 
-<script type="text/javascript" src="../Common/webgl-utils.js"></script>
-<script type="text/javascript" src="../Common/initShaders.js"></script>
-<script type="text/javascript" src="../Common/MV.js"></script>
+<script type="text/javascript" src="../../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../../Common/initShaders.js"></script>
+<script type="text/javascript" src="../../Common/MV.js"></script>
 <script type="text/javascript" src="sierpinsky.js"></script>
 </head>
 

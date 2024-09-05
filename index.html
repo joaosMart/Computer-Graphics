@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Exercises</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #exercise-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        #exercise-list li {
+            margin-bottom: 10px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebGL Exercises</h1>
+    <ul id="exercise-list">
+        <!-- Exercise links will be dynamically inserted here -->
+    </ul>
+    <div id="error-message" class="error"></div>
+
+    <script>
+        const username = 'joaosMart';
+        const repo = 'Computer-Graphics';
+        const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/exercises`;
+
+        async function fetchExercises() {
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                console.log('API Response:', data);
+
+                if (!response.ok) {
+                    throw new Error(`GitHub API responded with status ${response.status}: ${data.message}`);
+                }
+
+                if (!Array.isArray(data)) {
+                    throw new Error('Unexpected data format received from GitHub API');
+                }
+
+                const exerciseList = document.getElementById('exercise-list');
+
+                data.forEach(item => {
+                    if (item.type === 'dir') {
+                        const li = document.createElement('li');
+                        const a = document.createElement('a');
+                        a.href = `exercises/${item.name}/`;
+                        a.textContent = item.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        li.appendChild(a);
+                        exerciseList.appendChild(li);
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching exercises:', error);
+                const errorMsg = document.getElementById('error-message');
+                errorMsg.textContent = `Error loading exercises: ${error.message}. Please check the console for more details.`;
+            }
+        }
+
+        fetchExercises();
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////
 var gl;
 var points;
+var offsetLoc; 
 
 window.onload = function init()
 {
@@ -15,12 +16,9 @@ window.onload = function init()
     if ( !gl ) { alert( "WebGL isn't available" ); }
 
     var vertices = new Float32Array([
-        -1, 1, 
-        1, 0, 
-        0.1, -0.1,
-        0, -1
-
-
+        -1, 0, 
+        -0.75, 0.5,
+        -0.5, 0.0
     ]);
 
     
@@ -46,11 +44,18 @@ window.onload = function init()
     gl.vertexAttribPointer( vPosition, 2, gl.FLOAT, false, 0, 0 );
     gl.enableVertexAttribArray( vPosition );
 
+    offsetLoc = gl.getUniformLocation(program, "offSet")
+
     render();
 };
 
 
 function render() {
     gl.clear( gl.COLOR_BUFFER_BIT );
-    gl.drawArrays( gl.TRIANGLE_FAN, 0, 4);
+
+    gl.uniform2f(offsetLoc, 0.0, 0.0);
+    gl.drawArrays( gl.TRIANGLES, 0, 3);
+
+    gl.uniform2f(offsetLoc, 1.0, 0.0);
+    gl.drawArrays( gl.TRIANGLES, 0, 3);
 }

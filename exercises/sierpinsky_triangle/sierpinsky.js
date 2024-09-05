@@ -2,11 +2,11 @@
 
 var gl;
 var points;
-var scaleLoc; 
+var timeLoc; 
 var startTime;
 
 var NumPoints = 5000;
-var time = 0; 
+var time = 0.0; 
 var scaleVar = 0.5; 
 
 window.onload = function init()
@@ -74,12 +74,12 @@ window.onload = function init()
     gl.enableVertexAttribArray( vPosition );
 
     // Get the location of the scale uniform 
-    scaleLoc = gl.getUniformLocation( program, "uScale" );
+    timeLoc = gl.getUniformLocation( program, "time" );
 
     startTime = Date.now()
     
     // Start the animation
-    requestAnimationFrame(render);
+    render();
 };
 
 
@@ -89,12 +89,12 @@ function render() {
 
     gl.clear( gl.COLOR_BUFFER_BIT );
 
-    time += 0.01
-    scaleVar =  2 + 1.7 * Math.cos(time)
+    time += 0.01;
+    //scaleVar =  2 + 1.7 * Math.sin(time)
 
 
     // Set the scale uniform 
-    gl.uniform1f(scaleLoc, scaleVar);
+    gl.uniform1f(timeLoc, time);
 
     gl.drawArrays( gl.POINTS, 0, points.length );
 

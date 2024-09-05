@@ -43,3 +43,21 @@ First we need to use a uniform in the vertex shader in order to be able to scale
 
 1. In the program rotatingSquare1 , the variable theta is incremented in each iteration. What are the risks involved?
 The main risk would be numeric overflow. In the code theta is a float variable and when increasing it for long enough we can arrive to a large enough number that excedes the maximum possible value of a float. This can lead to unexpected behaviour in calculation, loss of precision, slow computation or even reaching infinity in extreme cases. 
+
+
+## Lecture 6 - Colorizer and GLSL 
+
+
+1. What is the final value of a after these GLSL commands? 
+
+> vec4 a = vec4(1.0, 2.0, 3.0, 4.0);
+> a.wzyx = a.xxyz;
+
+a = (1, 2, 3,4 )
+
+a = (3, 2, 1, 1,) //
+
+
+
+
+
