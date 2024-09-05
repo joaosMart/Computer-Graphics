@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebGL Exercises</title>
+    <title>WebGL Course Content</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,11 +11,14 @@
             margin: 0 auto;
             padding: 20px;
         }
-        #exercise-list {
+        h1, h2 {
+            color: #333;
+        }
+        .content-list {
             list-style-type: none;
             padding: 0;
         }
-        #exercise-list li {
+        .content-list li {
             margin-bottom: 10px;
         }
         .error {
@@ -25,23 +28,20 @@
     </style>
 </head>
 <body>
-    <h1>WebGL Exercises</h1>
-    <ul id="exercise-list">
-        <!-- Exercise links will be dynamically inserted here -->
-    </ul>
+    <h1>WebGL Course</h1>
+    <div id="content-sections"></div>
     <div id="error-message" class="error"></div>
 
     <script>
         const username = 'joaosMart';
         const repo = 'Computer-Graphics';
-        const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/exercises`;
+        const foldersToInclude = ['exercises', 'Assignments', 'Homeworks'];
 
-        async function fetchExercises() {
+        async function fetchContent(folder) {
+            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
             try {
                 const response = await fetch(apiUrl);
                 const data = await response.json();
-                
-                console.log('API Response:', data);
 
                 if (!response.ok) {
                     throw new Error(`GitHub API responded with status ${response.status}: ${data.message}`);
@@ -51,26 +51,45 @@
                     throw new Error('Unexpected data format received from GitHub API');
                 }
 
-                const exerciseList = document.getElementById('exercise-list');
-
-                data.forEach(item => {
-                    if (item.type === 'dir') {
-                        const li = document.createElement('li');
-                        const a = document.createElement('a');
-                        a.href = `exercises/${item.name}/`;
-                        a.textContent = item.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                        li.appendChild(a);
-                        exerciseList.appendChild(li);
-                    }
-                });
+                return data.filter(item => item.type === 'dir');
             } catch (error) {
-                console.error('Error fetching exercises:', error);
-                const errorMsg = document.getElementById('error-message');
-                errorMsg.textContent = `Error loading exercises: ${error.message}. Please check the console for more details.`;
+                console.error(`Error fetching ${folder}:`, error);
+                return [];
             }
         }
 
-        fetchExercises();
+        async function displayContent() {
+            const contentSections = document.getElementById('content-sections');
+
+            for (const folder of foldersToInclude) {
+                const items = await fetchContent(folder);
+                if (items.length > 0) {
+                    const section = document.createElement('div');
+                    section.innerHTML = `
+                        <h2>${folder.charAt(0).toUpperCase() + folder.slice(1)}</h2>
+                        <ul class="content-list" id="${folder}-list"></ul>
+                    `;
+                    contentSections.appendChild(section);
+
+                    const list = document.getElementById(`${folder}-list`);
+                    items.forEach(item => {
+                        const li = document.createElement('li');
+                        const a = document.createElement('a');
+                        a.href = `${folder}/${item.name}/`;
+                        a.textContent = item.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        li.appendChild(a);
+                        list.appendChild(li);
+                    });
+                }
+            }
+
+            if (contentSections.children.length === 0) {
+                const errorMsg = document.getElementById('error-message');
+                errorMsg.textContent = 'No content found. Please check your repository structure.';
+            }
+        }
+
+        displayContent();
     </script>
 </body>
 </html>
