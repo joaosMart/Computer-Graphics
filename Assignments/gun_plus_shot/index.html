@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gun Movement and Shooting Demo</title>
+</head>
+<body>
+    <canvas id="gl-canvas" width="800" height="600">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+
+    <script id="vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 vPosition;
+    uniform float uGunPosition;
+    uniform float uTranslation;
+    
+    void main() {
+        vec4 position = vPosition;
+        position.x += uGunPosition;
+        position.y += uTranslation;
+        gl_Position = position;
+    }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform vec4 rcolor;
+    
+    void main() {
+        gl_FragColor = rcolor;
+    }
+    </script>
+
+    <script type="text/javascript" src="../../Common/webgl-utils.js"></script>
+    <script type="text/javascript" src="../../Common/initShaders.js"></script>
+    <script type="text/javascript" src="../../Common/MV.js"></script>
+    <script type="text/javascript" src="gunPlusShot.js"></script>
+</body>
+</html>

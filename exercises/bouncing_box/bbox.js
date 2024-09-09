@@ -56,10 +56,11 @@ window.onload = function init() {
 
     locBox = gl.getUniformLocation( program, "boxPos" );
 
+
     // Handle arrow keys
     window.addEventListener("keydown", function(e){
         switch( e.keyCode ) {
-            case 38:	// up arrow
+            case 87:	// up arrow
                 dX *= 1.1;
                 dY *= 1.1;
                 break;

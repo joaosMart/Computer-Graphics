@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shooting Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .game-container {
+            display: flex;
+            border: 10px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            background-color: #fff;
+        }
+        #gl-canvas {
+            display: block;
+        }
+        .game-info {
+            width: 200px;
+            padding: 20px;
+            background-color: #f8f8f8;
+            border-left: 1px solid #ddd;
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+            font-size: 24px;
+        }
+        .instructions {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+        .game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gl-canvas" width="800" height="600">
+            Oops ... your browser doesn't support the HTML5 canvas element
+        </canvas>
+        <div id = "gameWon" class = "game-over-overlay">
+            <div id="gameWonMessage"></div>
+        </div>
+        <div class="game-info">
+            <h1>Not Flappy Bird</h1>
+            <div class="instructions">
+                <p><strong>How to play:</strong></p>
+                <p>Use mouse to move the gun left and right.</p>
+                <p>Press 'W' to shoot.</p>
+                <p>Shoot the birds to score points!</p>
+                <p>5 points means victory!</p>
+            </div>
+        </div>
+    </div>
+
+    <script id="vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 vPosition;
+    uniform float uGunPosition;
+    uniform float uTranslation;
+    
+    void main() {
+        vec4 position = vPosition;
+        position.x += uGunPosition;
+        position.y += uTranslation;
+        gl_Position = position;
+        gl_PointSize = 20.0;
+    }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform vec4 rcolor;
+    
+    void main() {
+        gl_FragColor = rcolor;
+    }
+    </script>
+
+    <script type="text/javascript" src="../../Common/webgl-utils.js"></script>
+    <script type="text/javascript" src="../../Common/initShaders.js"></script>
+    <script type="text/javascript" src="../../Common/MV.js"></script>
+    <script type="text/javascript" src="full_animation.js"></script>
+</body>
+</html>
