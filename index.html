@@ -122,7 +122,7 @@
                     items.forEach(item => {
                         const li = document.createElement('li');
                         const a = document.createElement('a');
-                        a.href = `${folder.toLowerCase()}/${item}/index.html`;
+                        a.href = `${folder}/${item}/index.html`;
                         a.textContent = item.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         li.appendChild(a);
                         list.appendChild(li);
