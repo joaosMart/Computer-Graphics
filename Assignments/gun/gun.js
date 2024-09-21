@@ -5,7 +5,7 @@ var bufferIdGun;
 var locPosition;
 var gunLoc;
 
-var gunPosition = 0.0;
+var gasketPosition = 0.0;
 var movement = false;
 var mouseX;
 
@@ -52,10 +52,10 @@ window.onload = function init() {
         if(movement) {
             var xmove = 2*(e.offsetX - mouseX)/canvas.width;
             mouseX = e.offsetX;
-            gunPosition += xmove;
+            gasketPosition += xmove;
 
             // To keep the gun within the canvas limits
-            gunPosition = Math.max(-1, Math.min(1, gunPosition));
+            gasketPosition = Math.max(-1, Math.min(1, gasketPosition));
         }
     });
 
@@ -68,7 +68,7 @@ function render() {
     // Draw gun
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferIdGun);
     gl.vertexAttribPointer(locPosition, 2, gl.FLOAT, false, 0, 0);
-    gl.uniform1f(gunLoc, gunPosition);
+    gl.uniform1f(gunLoc, gasketPosition);
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 
     requestAnimationFrame(render);

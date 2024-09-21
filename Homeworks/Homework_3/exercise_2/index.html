@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+<title>Hringur</title>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vPosition;
+
+void main()
+{
+    gl_Position = vPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+uniform float time;
+uniform vec2 resolution;
+
+void main()
+{
+    vec4 color;
+    float smoothed_time = time/300.; 
+    float iter;
+    
+    // Get standard fragment coordinates (gl_FragCoord is in screen coordinates)
+    vec2 st = gl_FragCoord.xy / resolution.xy;
+    
+    // Let's change them to -1 to 1
+    st = 2.0*st - 1.0;
+
+    st.x += sin(smoothed_time * 1.0) * 1.0;  
+    
+        
+
+    // Iterate from bottom and top 
+    st.y += sin(smoothed_time * 4.0 ) * 0.2;   
+    
+    if (length(st) < 0.1)
+        color = vec4(1.0, 1.0, 0.0, 1.0);   // Gulur - Yellow
+    else
+        color = vec4(0.0, 0.0, 1.0, 1.0);   // Blár - Blue
+    
+    gl_FragColor = color;
+}
+</script>
+
+<script type="text/javascript" src="../../../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../../../Common/initShaders.js"></script>
+<script type="text/javascript" src="../../../Common/MV.js"></script>
+<script type="text/javascript" src="drawWaveCircle.js"></script>
+</head>
+
+<body>
+<canvas id="gl-canvas" width="600" height="600">
+</body>
+</html>

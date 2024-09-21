@@ -175,15 +175,13 @@ function stopGame(message) {
 }
 
 function drawGameOverMessage() {
-    gl.clearColor(0.0, 0.0, 0.0, 0.5);  // semi-transparent black
+    gl.clearColor(0.0, 0.0, 0.0, 0.5); 
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // Set up text rendering
     gl.useProgram(program);
-    gl.uniform4fv(locColor, [1.0, 1.0, 1.0, 1.0]);  // white color for text
+    gl.uniform4fv(locColor, [1.0, 1.0, 1.0, 1.0]);  
 
-    // You'll need to implement actual text rendering here
-    // This is a placeholder for where you'd render the text
     console.log("Game Over: " + gameOverMessage);
 }
 
@@ -212,6 +210,8 @@ function render() {
     gl.uniform1f(gunLoc, gunPosition);
     gl.uniform1f(translationLoc, 0.0);
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+
+    
 
     //=======================
     // Update and draw shots
