@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Game of Life</title>
+ <style>
+ body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+    font-family: Arial, sans-serif;
+}
+.game-container {
+    display: flex;
+    border: 10px solid #333;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    background-color: #fff;
+}
+#gl-canvas {
+    display: block;
+}
+.game-info {
+    width: 200px;
+    padding: 20px;
+    background-color: #f8f8f8;
+    border-left: 1px solid #ddd;
+}
+ h1 {
+    color: #333;
+    margin-top: 0;
+    font-size: 24px;
+}
+.controls {
+    margin-top: 20px;
+}
+button {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+button:hover {
+    background-color: #45a049;
+}
+.slider-container {
+    margin-top: 20px;
+}
+.slider {
+    width: 100%;
+}
+.instructions {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.5;
+}
+</style>
+</head>
+<body>
+<div class="game-container">
+    <canvas id="gl-canvas" width="600" height="600">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+    <div class="game-info">
+        <h1>3D Game of Life</h1>
+        <div class="controls">
+            <button id="resetButton">Reset Grid</button>
+        </div>
+        <div class="slider-container">
+            <label for="speedSlider">Simulation Speed:</label>
+            <input type="range" id="speedSlider" class="slider" min="0" max="1000" value="500">
+        </div>
+        <div class="instructions">
+            <p><strong>Controls:</strong></p>
+            <p>- Click and drag to rotate the view</p>
+            <p>- Press spacebar to pause/resume</p>
+            <p>- Click on a cell to toggle its state</p>
+            <p>- Use the slider to adjust speed</p>
+            <p>- Press 'Reset Grid' for a new random state</p>
+        </div>
+    </div>
+</div>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vPosition;
+attribute vec4 vColor;
+varying vec4 fColor;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+void main() {
+    gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+    fColor = vColor;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+varying vec4 fColor;
+
+void main() {
+    gl_FragColor = fColor;
+}
+</script>
+
+<script type="text/javascript" src="../../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../../Common/initShaders.js"></script>
+<script type="text/javascript" src="../../Common/MV.js"></script>
+<script type="text/javascript" src="static.js"></script>
+</body>
+</html>

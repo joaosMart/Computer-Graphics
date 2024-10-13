@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////
 //    Sýnidæmi í Tölvugrafík
-//     Búum til 10x10x10 net af teningum með breytilegri þéttni
+//     Búum til bókstafinn H úr þremur teningum
 //
 //    Hjálmtýr Hafsteinsson, september 2024
 /////////////////////////////////////////////////////////////////
@@ -21,8 +21,10 @@ var origY;
 var matrixLoc;
 
 var gridSize = 10;
-var cubeSize = 0.8; // Cube size in terms of cell size
-var cellProbability = 0.01; // Probability of a cell being alive
+var cubeSize = 0.85; // Cube size in terms of cell size
+
+var zDist = -4. ;
+
 
 window.onload = function init()
 {
@@ -31,7 +33,7 @@ window.onload = function init()
     gl = WebGLUtils.setupWebGL( canvas );
     if ( !gl ) { alert( "WebGL isn't available" ); }
 
-    createGrid();
+    colorCube();
 
     gl.viewport( 0, 0, canvas.width, canvas.height );
     gl.clearColor( 1.0, 1.0, 1.0, 1.0 );
@@ -82,24 +84,30 @@ window.onload = function init()
             origY = e.offsetY;
         }
     } );
+
+    // Event listener for mousewheel
+    window.addEventListener("wheel", function(e){
+        if( e.deltaY > 0.0 ) {
+            zDist += 0.2;
+        } else {
+            zDist -= 0.2;
+        }
+    }  ); 
     
     render();
 }
 
-function createGrid()
+function colorCube()
 {
-    for(var x = 0; x < gridSize; x++) {
-        for(var y = 0; y < gridSize; y++) {
-            for(var z = 0; z < gridSize; z++) {
-                if(Math.random() < cellProbability) {
-                    createCube(x, y, z);
-                }
-            }
-        }
-    }
+    quad( 1, 0, 3, 2 );
+    quad( 2, 3, 7, 6 );
+    quad( 3, 0, 4, 7 );
+    quad( 6, 5, 1, 2 );
+    quad( 4, 5, 6, 7 );
+    quad( 5, 4, 0, 1 );
 }
 
-function createCube(x, y, z)
+function quad(a, b, c, d) 
 {
     var vertices = [
         vec3( -0.5, -0.5,  0.5 ),
@@ -123,38 +131,32 @@ function createCube(x, y, z)
         [ 1.0, 1.0, 1.0, 1.0 ]   // white
     ];
 
-    var faces = [
-        [ 1, 0, 3, 1, 3, 2 ],
-        [ 2, 3, 7, 2, 7, 6 ],
-        [ 3, 0, 4, 3, 4, 7 ],
-        [ 6, 5, 1, 6, 1, 2 ],
-        [ 4, 5, 6, 4, 6, 7 ],
-        [ 5, 4, 0, 5, 0, 1 ]
-    ];
+    //vertex color assigned by the index of the vertex
+    var indices = [ a, b, c, a, c, d ];
 
-    for (var i = 0; i < faces.length; i++) {
-        var faceColor = vertexColors[i];
-        for (var j = 0; j < 6; j++) {
-            var vertexIndex = faces[i][j];
-            var scaledVertex = scale(cubeSize, vertices[vertexIndex]);
-            var translatedVertex = add(scaledVertex, vec3(x-gridSize/2+0.5, y-gridSize/2+0.5, z-gridSize/2+0.5));
-            points.push(translatedVertex);
-            colors.push(faceColor);
-        }
+    for ( var i = 0; i < indices.length; ++i ) {
+        points.push( vertices[indices[i]] );
+        colors.push(vertexColors[a]);
+        
     }
 }
+
 
 function render()
 {
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    var mv = mat4();
+    var mv = lookAt( vec3(0.0, 0.0, zDist), vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0) );
     mv = mult( mv, rotateX(spinX) );
-    mv = mult( mv, rotateY(spinY) );
-    mv = mult( mv, scalem(0.1, 0.1, 0.1) );  // Scale down the entire grid
+    mv = mult( mv, rotateY(spinY) ) ;
 
-    gl.uniformMatrix4fv(matrixLoc, false, flatten(mv));
-    gl.drawArrays( gl.TRIANGLES, 0, points.length );
+    // Build a cube
+    mv1 = mult( mv, translate( 0.0, 0.0, 0.0 ) );
+    mv1 = mult( mv1, scalem( 1., 1., 1. ) );
+    gl.uniformMatrix4fv(matrixLoc, false, flatten(mv1));
+    gl.drawArrays( gl.TRIANGLES, 0, numVertices );
+
+    
 
     requestAnimFrame( render );
 }
