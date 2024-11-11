@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Frogger - Fixed Camera</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #gameOverScreen {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        z-index: 1000;
+        }
+        #score {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+        }
+        /* New styles for rules panel */
+        #rulesPanel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: left;
+            max-width: 600px;
+            width: 80%;
+            z-index: 1000;
+        }
+        #rulesPanel h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+        #rulesPanel h2 {
+            color: #81C784;
+            margin-top: 20px;
+        }
+        #rulesPanel ul {
+            margin-bottom: 20px;
+        }
+        #rulesPanel li {
+            margin: 10px 0;
+        }
+        #playButton {
+            display: block;
+            margin: 20px auto;
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #playButton:hover {
+            background-color: #45a049;
+        }
+
+        #lives {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 24px;
+    }
+    #lifeMessage {
+        display: none;
+        position: fixed;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 15px 30px;
+        border-radius: 8px;
+        font-family: Arial, sans-serif;
+        font-size: 20px;
+        text-align: center;
+        animation: fadeInOut 2s ease-in-out;
+        z-index: 999;
+    }
+    @keyframes fadeInOut {
+        0% { opacity: 0; }
+        15% { opacity: 1; }
+        85% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+    </style>
+</head>
+<body>
+    <!-- Rules Panel -->
+    <div id="rulesPanel">
+        <h1>Welcome to 3D Frogger!</h1>
+        
+        <h2>Objective</h2>
+        <p>Guide your frog safely across the highway and river to reach all five lily pads at the top of the screen.</p>
+        
+        <h2>Controls</h2>
+        <ul>
+            <li>Use Arrow Keys to move your frog</li>
+            <li>↑ Move forward</li>
+            <li>↓ Move backward</li>
+            <li>← Move left</li>
+            <li>→ Move right</li>
+        </ul>
+        
+        <h2>Scoring System</h2>
+        <ul>
+            <li>Successfully reaching a lily pad: 100 points</li>
+            <li>Catching a fly: 25 points</li>
+            <li>Catching a flying insect: 25 points</li>
+        </ul>
+        
+        <h2>Hazards</h2>
+        <ul>
+            <li>Avoid cars on the highway</li>
+            <li>Use logs and turtles to cross the river</li>
+            <li>Watch out! Turtles will occasionally dive underwater</li>
+            <li>Don't fall into the water</li>
+            <li>Stay within the game boundaries</li>
+        </ul>
+        
+        <button id="playButton">Let's Play!</button>
+    </div>
+
+    <div id="score">Score: <span id="scoreValue">0</span></div>
+    <div id="lives">Lives: <span id="livesValue">5</span></div>
+    <div id="lifeMessage"></div>
+    <div id="gameOverScreen">
+        <h2>Game Over!</h2>
+        <p id="gameOverReason"></p>
+        <button onclick="restartGame()">Play Again</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.157.0/three.min.js"></script>
+    
+    <script>
+
+
+class Frogger3D {
+    constructor() {
+
+        this.resetUIState();
+        // Scene setup
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        // Lives
+        this.lives = 5;
+
+        // Rules Pannel 
+        this.showRulesPanel();
+
+        // Game properties
+        this.gridSize = {
+            width: 15,
+            height: 14
+        };
+        this.cellSize = 1;
+
+         // Create clipping planes for left and right boundaries
+         this.clippingPlanes = [
+            new THREE.Plane(new THREE.Vector3(1, 0, 0), this.gridSize.width * this.cellSize / 2),  // Right boundary
+            new THREE.Plane(new THREE.Vector3(-1, 0, 0), this.gridSize.width * this.cellSize / 2)  // Left boundary
+        ];
+
+        // Setup renderer with clipping planes
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setClearColor(0x87CEEB); // Sky blue background
+        this.renderer.localClippingEnabled = true;
+        document.body.appendChild(this.renderer.domElement);
+
+        // Initialize game state        
+        this.initializeGameState();
+
+        
+        this.lanes = {
+            safe: [0, 1],  // Starting point, middle, end
+            road: [8, 9, 10, 11, 12],  // Road lanes
+            river:  [2, 3, 4, 5, 6] // River lanes
+        };
+
+        // Add log configurations for each river lane
+        this.logConfigs = {
+            // Lane index: Configuration object
+
+            4: {size: 2,                // Log size
+                pattern: [3, 2],        // 2 logs together, 3 units gap
+                speed: -0.025,          // Movement speed (positive = right, negative = left)
+                spacing: 3,             // Total space between start of log groups
+                isTurtle: true,
+                submersionConfig: {
+                    interval: 1500,     // Time between submersion attempts (ms)
+                    duration: 2000,     // How long turtles stay submerged (ms)
+                    warningDuration: 1000,  // Warning period before submersion (ms)
+                    lastSubmersionTime: 0,  // Track last submersion
+                    isSubmerged: false,
+                    isWarning: false}},                              
+            3: {size: 2,
+                pattern: [3, 2],          // 3 logs together, 2 units gap
+                speed: 0.025,
+                spacing: 3},
+            2: {size: 6,
+                pattern: [3, 1],          // Single log, 4 units gap
+                speed: 0.02,
+                spacing: 5},
+            1: {size: 4,
+                pattern: [2, 1],
+                speed: -0.02,
+                spacing: 4,
+                isTurtle: true,
+                submersionConfig: {
+                    interval: 1500,    
+                    duration: 2000,    
+                    warningDuration: 1000,
+                    lastSubmersionTime: 0,
+                    isSubmerged: false,
+                    isWarning: false}},
+            0: {size: 4,
+                pattern: [4, 3],          // 4 logs together, 3 units gap
+                speed: 0.023,
+                spacing: 6}
+        };
+
+        // Define car configurations for each road lane
+        this.carConfigs = {
+            // Lane index (relative to road array): {speed, color}
+            0: { speed: 0.03, color: 0xff4500 },    
+            1: { speed: -0.015, color: 0xff6b6b }, 
+            2: { speed: 0.04, color: 0xff0000 },     
+            3: { speed: -0.025, color: 0xFED000 },  
+            4: { speed: 0.02, color: 0x4169E1 }      
+        };
+
+        // Pattern Tracking for each log lane
+        this.lanePatternStates = {};
+        this.lanes.river.forEach((_, index) => {
+            this.lanePatternStates[index] = {
+                nextSpawnTime: 0,
+                currentPatternIndex: 0,
+                logsInCurrentGroup: 0
+            };
+        });
+        
+        // Pond Tracking
+        this.ponds = [];
+        this.occupiedPonds = new Set(); // Track which ponds are filled
+        this.landedFrogs = []; // Store static frogs in ponds
+        
+        // Flies Tracking
+        this.flies = []; // Will now store flies with timestamps
+        this.maxFlies = 2; // Maximum number of flies allowed
+        this.flySpawnTimer = 0;
+        this.flySpawnInterval = 2000; // Spawn check every 5 seconds
+        this.lastSpawnTime = Date.now();
+
+        // Flying Insects Tracking
+        this.flyingInsects = []; // Array to store flying insects
+        this.flyingInsectSpawnTimer = 0;
+        this.flyingInsectSpawnInterval = 3000; // Spawn check every 3 seconds
+        this.lastFlyingInsectSpawnTime = Date.now();
+        this.maxFlyingInsects = 2; // Maximum number of flying insects allowed
+
+        
+        // Game objects
+        this.frog = null;
+        this.cars = [];
+        this.logs = [];
+        this.currentLog = null;
+        this.score = 0;
+        
+        // Game Over States
+        this.currentLog = null;
+        this.gameOverDelay = false;
+        this.gameOverTimer = null;
+        this.gameOverReason = '';
+
+        // Boundary tracking
+        this.boundaries = {
+            left: -this.gridSize.width * this.cellSize / 2,
+            right: this.gridSize.width * this.cellSize / 2
+        };
+
+        // Collision Detection: Logs and Frogs
+        this.dimensions = {
+            frog: { width: 0.8 }, // Width of the frog
+            log: { width: 3.0 }   // Width of the log
+        };
+
+        // Scoring Values
+        this.scoreValues = {
+            fly: 25,
+            flyingInsect: 25,
+            pondLanding: 100
+        };
+
+        // Add new turtle state management
+        this.turtleStateManager = {
+            lanes: {},  // Store state per lane
+            globalClock: 0,  // Global timing reference
+            cycleLength: 15000,  // Total length of a full cycle in ms
+            lastUpdate: Date.now()
+        };
+
+        // Initialize state for turtle lanes
+        this.lanes.river.forEach((lane, index) => {
+            const config = this.logConfigs[index];
+            if (config && config.isTurtle) {
+                this.turtleStateManager.lanes[index] = {
+                    groups: [],           // Active turtle groups in this lane
+                    currentCycleTime: 0,  // Current time in the cycle
+                    cycleState: 'surface',// Current state: 'surface', 'warning', 'submerged', 'emerging'
+                    nextStateChange: 0,   // Time until next state change
+                    submersionConfig: {   // Copy of the submersion configuration
+                        ...config.submersionConfig,
+                        totalCycle: config.submersionConfig.interval + 
+                                  config.submersionConfig.warningDuration +
+                                  config.submersionConfig.duration
+                    }
+                };
+            }
+        });
+
+        this.init();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    init() {
+        // Setup lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        this.scene.add(directionalLight);
+
+        // Create ground
+        this.createGround();
+        
+        // Create frog
+        this.createFrog();
+        
+        // Create obstacles
+        this.createCars();
+        this.createLogs();
+
+        // Set fixed camera position
+        this.setupFixedCamera();
+
+        // Setup controls
+        this.setupControls();
+
+        // Start game loop
+        this.animate();
+    }
+
+    showRulesPanel() {
+            const rulesPanel = document.getElementById('rulesPanel');
+            const playButton = document.getElementById('playButton');
+            
+            playButton.addEventListener('click', () => {
+                rulesPanel.style.display = 'none';
+                this.startGame();
+            });
+        };
+
+    // New method for fixed camera setup
+    setupFixedCamera() {
+        // Position camera to view entire game board
+        const aspectRatio = window.innerWidth / window.innerHeight;
+        const gridWorldWidth = this.gridSize.width * this.cellSize;
+        const gridWorldHeight = this.gridSize.height * this.cellSize;
+        
+        // Calculate camera position based on grid size
+        const cameraDistance = Math.max(gridWorldWidth / aspectRatio, gridWorldHeight) * 0.7;
+        
+        // Position camera above and behind the game board
+        this.camera.position.set(0, cameraDistance * 1.2, cameraDistance * 0.8);
+        
+        // Point camera at center of game board
+        this.camera.lookAt(0, 0, 0);
+    }
+
+    createGround() {
+        this.groundGroup = new THREE.Group();
+        const cellWidth = this.cellSize;
+        const cellHeight = this.cellSize;
+
+        // Define pond positions (column indices)
+        const pondPositions = [1, 4, 7, 10, 13];
+        
+        for(let row = 0; row < this.gridSize.height; row++) {
+            for(let col = 0; col < this.gridSize.width; col++) {
+                const cellGeometry = new THREE.PlaneGeometry(cellWidth, cellHeight);
+                let cellColor;
+                
+                if (row === 0) {
+                    cellColor = 0x654321; // Dark brown color
+                } else if (row === 1) {
+                    if (pondPositions.includes(col)) {
+                        cellColor = 0x0066ff; // Pond blue
+                        this.ponds.push({
+                            index: this.ponds.length,
+                            x: (col - this.gridSize.width/2) * cellWidth + cellWidth/2,
+                            z: (row - this.gridSize.height/2) * cellHeight + cellHeight/2
+                        });
+                    } else {
+                        cellColor = 0x90EE90; // Grass green
+                    }
+                } else if (this.lanes.road.includes(row)) {
+                    cellColor = 0x333333; // Road gray
+                } else if (this.lanes.river.includes(row)) {
+                    cellColor = 0x0066ff; // River blue
+                } else {
+                    cellColor = 0x90EE90; // Grass green
+                }
+                
+                const cellMaterial = new THREE.MeshPhongMaterial({ 
+                    color: cellColor,
+                    wireframe: false,
+                    wireframeLinewidth: 1,
+
+                    // Ground pieces shouldn't be clipped
+                    clippingPlanes: []
+                });
+                
+                const cell = new THREE.Mesh(cellGeometry, cellMaterial);
+                cell.rotation.x = -Math.PI / 2;
+                cell.position.set(
+                    (col - this.gridSize.width/2) * cellWidth + cellWidth/2,
+                    -0.1,
+                    (row - this.gridSize.height/2) * cellHeight + cellHeight/2
+                );
+                
+                this.groundGroup.add(cell);
+            }
+        }
+        
+        this.scene.add(this.groundGroup);
+    }
+
+    createFrog() {
+        const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+        const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+        this.frog = new THREE.Mesh(geometry, material);
+        this.frog.position.set(0, 0.4, this.gridSize.height -7.5);
+        this.scene.add(this.frog);
+    }
+
+    createFly(pondIndex) {
+        // Create fly body
+        const bodyGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 }); // Black body
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+
+        // Create wings
+        const wingGeometry = new THREE.CircleGeometry(0.15, 8);
+        const wingMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xaaaaaa,
+            transparent: true,
+            opacity: 0.5
+        });
+        const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+        const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+
+        // Position wings
+        leftWing.position.x = -0.15;
+        rightWing.position.x = 0.15;
+        leftWing.rotation.y = Math.PI / 4;
+        rightWing.rotation.y = -Math.PI / 4;
+
+        // Create fly group
+        const flyGroup = new THREE.Group();
+        flyGroup.add(body);
+        flyGroup.add(leftWing);
+        flyGroup.add(rightWing);
+
+        // Position fly at pond
+        const pond = this.ponds[pondIndex];
+        flyGroup.position.set(pond.x, 1, pond.z);
+
+        // Animation properties and creation timestamp
+        flyGroup.userData = {
+            pondIndex: pondIndex,
+            wingAngle: 0,
+            baseY: 1,
+            hoverOffset: 0,
+            hoverSpeed: 0.05,
+            creationTime: Date.now() // Timestamp for age tracking
+        };
+
+        this.scene.add(flyGroup);
+        return flyGroup;
+    }
+
+    createFlyingInsect() {
+        // Create insect body
+        const bodyGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x800080 }); // Purple body
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+
+        // Create wings
+        const wingGeometry = new THREE.CircleGeometry(0.2, 8);
+        const wingMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xffaaff,
+            transparent: true,
+            opacity: 0.6
+        });
+        const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+        const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+
+        // Position wings
+        leftWing.position.x = -0.2;
+        rightWing.position.x = 0.2;
+        leftWing.rotation.y = Math.PI / 4;
+        rightWing.rotation.y = -Math.PI / 4;
+
+        // Create insect group
+        const insectGroup = new THREE.Group();
+        insectGroup.add(body);
+        insectGroup.add(leftWing);
+        insectGroup.add(rightWing);
+
+        // Calculate spawn coordinates
+        const spawnX = -this.gridSize.width * this.cellSize / 2;  // Always spawn from left side
+        const randomZ = (Math.random() * (this.gridSize.height - 4) + 2) * this.cellSize - (this.gridSize.height / 2 * this.cellSize);
+        
+        // Modified height parameters
+        const baseHeight = 0.5; 
+        const heightVariation = 0.2; 
+
+        // Set initial position
+        insectGroup.position.set(
+            spawnX,
+            baseHeight + Math.random() * heightVariation, // Random height
+            randomZ
+        );
+
+        // Add custom properties to the insect
+        insectGroup.userData = {
+            wingAngle: 0,
+            speed: 0.01 + Math.random() * 0.02, // Base speed
+            verticalOffset: 0,
+            verticalSpeed: 0.03 + Math.random() * 0.02, // Random vertical movement speed
+            spawnX: spawnX,         // Store spawning X coordinate
+            movingRight: true,      // Start moving right
+            initialY: insectGroup.position.y // Store initial height
+        };
+
+        this.scene.add(insectGroup);
+        this.flyingInsects.push(insectGroup);
+        return insectGroup;
+    }
+
+
+    removeFly(fly, index) {
+        // Clean up the fly's meshes
+        fly.children.forEach(child => {
+            this.disposeMesh(child);
+        });
+        this.scene.remove(fly);
+        this.flies.splice(index, 1);
+    }
+
+    removeFlyingInsect(insect, index) {
+        insect.children.forEach(child => {
+            this.disposeMesh(child);
+        });
+        this.scene.remove(insect);
+        this.flyingInsects.splice(index, 1);
+    }
+
+    findOldestFly() {
+        let oldestIndex = -1;
+        let oldestTime = Infinity;
+        
+        this.flies.forEach((fly, index) => {
+            if (fly.userData.creationTime < oldestTime) {
+                oldestTime = fly.userData.creationTime;
+                oldestIndex = index;
+            }
+        });
+        
+        return oldestIndex;
+    }
+
+    isPondOccupied(pondIndex) {
+        // Check if pond has a frog or another fly
+        if (this.occupiedPonds.has(pondIndex)) {
+            return true;
+        }
+        
+        return this.flies.some(fly => fly.userData.pondIndex === pondIndex);
+    }
+
+    updateFlies(deltaTime) {
+        // Check if it's time to spawn a new fly
+        const currentTime = Date.now();
+        if (currentTime - this.lastSpawnTime > this.flySpawnInterval) {
+            this.lastSpawnTime = currentTime;
+            
+            // 30% chance to attempt spawning a fly
+            if (Math.random() < 0.3) {
+                // Find available ponds (not occupied by frogs or other flies)
+                const availablePonds = Array.from(Array(this.ponds.length).keys())
+                    .filter(index => !this.isPondOccupied(index));
+                
+                if (availablePonds.length > 0) {
+                    // Select random available pond
+                    const randomPondIndex = availablePonds[Math.floor(Math.random() * availablePonds.length)];
+                    
+                    // If we're at max flies, remove the oldest one
+                    if (this.flies.length >= this.maxFlies) {
+                        const oldestIndex = this.findOldestFly();
+                        if (oldestIndex !== -1) {
+                            this.removeFly(this.flies[oldestIndex], oldestIndex);
+                        }
+                    }
+                    
+                    // Create and add new fly
+                    const newFly = this.createFly(randomPondIndex);
+                    this.flies.push(newFly);
+                }
+            }
+        }
+
+        // Update existing flies
+        for (let i = this.flies.length - 1; i >= 0; i--) {
+            const fly = this.flies[i];
+            
+            // Animate wings
+            const leftWing = fly.children[1];
+            const rightWing = fly.children[2];
+            
+            fly.userData.wingAngle += 0.3;
+            const wingFlap = Math.sin(fly.userData.wingAngle) * 0.5;
+            
+            leftWing.rotation.y = Math.PI / 4 + wingFlap;
+            rightWing.rotation.y = -Math.PI / 4 - wingFlap;
+
+            // Hover animation
+            fly.userData.hoverOffset += fly.userData.hoverSpeed;
+            fly.position.y = fly.userData.baseY + Math.sin(fly.userData.hoverOffset) * 0.2;
+
+            // Remove fly if frog lands in its pond
+            if (this.occupiedPonds.has(fly.userData.pondIndex)) {
+                this.removeFly(fly, i);
+            }
+        }
+    }
+
+    updateFlyingInsects(deltaTime) {
+        // Check if it's time to spawn a new flying insect
+        const currentTime = Date.now();
+        if (currentTime - this.lastFlyingInsectSpawnTime > this.flyingInsectSpawnInterval) {
+            this.lastFlyingInsectSpawnTime = currentTime;
+            
+            // 30% chance to spawn a new flying insect
+            if (Math.random() < 0.3 && this.flyingInsects.length < this.maxFlyingInsects) {
+                this.createFlyingInsect();
+            }
+        }
+
+        // Update existing flying insects
+        for (let i = this.flyingInsects.length - 1; i >= 0; i--) {
+            const insect = this.flyingInsects[i];
+            
+            // Calculate movement direction and update position
+            const currentSpeed = insect.userData.speed * (insect.userData.movingRight ? 1 : -1);
+            insect.position.x += currentSpeed;
+
+            // Vertical movement (sine wave pattern)
+            insect.userData.verticalOffset += insect.userData.verticalSpeed;
+            const verticalPosition = Math.sin(insect.userData.verticalOffset) * 0.3;
+            insect.position.y = insect.userData.initialY + verticalPosition;
+
+            // Animate wings
+            const leftWing = insect.children[1];
+            const rightWing = insect.children[2];
+            
+            insect.userData.wingAngle += 0.4;
+            const wingFlap = Math.sin(insect.userData.wingAngle) * 0.5;
+            
+            leftWing.rotation.y = Math.PI / 4 + wingFlap;
+            rightWing.rotation.y = -Math.PI / 4 - wingFlap;
+
+            // Check if insect needs to change direction or be removed
+            if (insect.userData.movingRight) {
+                // If moving right and reached right edge
+                if (insect.position.x >= this.gridSize.width * this.cellSize / 2) {
+                    insect.userData.movingRight = false; // Change direction
+                }
+            } else {
+                // If moving left and reached spawn position
+                if (insect.position.x <= insect.userData.spawnX) {
+                    this.removeFlyingInsect(insect, i);
+                }
+            }
+        }
+    }
+
+    createStaticFrog(position) {
+        const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+        const material = new THREE.MeshPhongMaterial({ 
+            color: 0x00aa00  // Slightly different color for landed frogs
+            
+        });
+        const staticFrog = new THREE.Mesh(geometry, material);
+        staticFrog.position.set(position.x, 0.4, position.z);
+        this.scene.add(staticFrog);
+        this.landedFrogs.push(staticFrog);
+        return staticFrog;
+    }
+
+    createCars() {
+        this.lanes.road.forEach((lane, index) => {
+            const config = this.carConfigs[index];
+            const carsPerLane = 3; // You can adjust this number for each lane if desired
+            const spacing = 5; // Space between cars
+            
+            for (let i = 0; i < carsPerLane; i++) {
+                const car = this.createCar(lane, config);
+                // Distribute cars evenly within game boundaries
+                car.position.x = this.boundaries.left + 
+                    (i * ((this.boundaries.right - this.boundaries.left) / carsPerLane));
+                this.cars.push(car);
+            }
+        });
+    }
+
+    createCar(lane, config) {
+        const geometry = new THREE.BoxGeometry(1.5, 0.4, 0.8);
+        const material = new THREE.MeshPhongMaterial({ 
+            color: config.color,
+            clippingPlanes: this.clippingPlanes,
+            clipShadows: true
+        });
+        const car = new THREE.Mesh(geometry, material);
+        car.position.z = (lane - this.gridSize.height / 2 + .5) * this.cellSize;
+        car.position.y = 0.4;
+        car.speed = config.speed;
+        this.scene.add(car);
+        return car;
+    }
+
+    // Helper method to calculate total width of a log group including gap
+    calculateGroupWidth(config) {
+        const logGroupWidth = config.pattern[0] * (config.size + 0.5); // Width of logs in group
+        const gapWidth = config.pattern[1]; // Width of gap after group
+        return logGroupWidth + gapWidth;
+    }
+
+    createLogs() {
+        this.lanes.river.forEach((lane, index) => {
+            const config = this.logConfigs[index];
+            const totalGroupWidth = this.calculateGroupWidth(config);
+            
+            // Calculate number of groups needed to fill the game area
+            const gameWidth = this.boundaries.right - this.boundaries.left;
+            const numGroups = Math.ceil(gameWidth / totalGroupWidth) + 1;
+            
+            for (let groupIndex = 0; groupIndex < numGroups; groupIndex++) {
+                this.createLogGroup(lane, index, groupIndex, totalGroupWidth);
+            }
+        });
+    }
+
+    createLogGroup(lane, laneIndex, groupIndex, totalGroupWidth) {
+        const config = this.logConfigs[laneIndex];
+        const startSide = config.speed > 0 ? -1 : 1;
+        
+        // Calculate starting position within game boundaries
+        let groupStartX = startSide === 1 ? this.boundaries.right : this.boundaries.left;
+        groupStartX += startSide * (groupIndex * totalGroupWidth);
+
+        // Create logs in the group
+        for (let i = 0; i < config.pattern[0]; i++) {
+            const log = this.createLog(lane, config.speed, config.size);
+            
+            // Position each log in the group
+            let logX = groupStartX;
+            if (config.speed > 0) {
+                logX += i * (config.size + 0.5);
+            } else {
+                logX -= i * (config.size + 0.5);
+            }
+            
+            // Only add log if it's within or near the game boundaries
+            if (logX >= this.boundaries.left - config.size && 
+                logX <= this.boundaries.right + config.size) {
+                log.position.x = logX;
+                log.groupIndex = groupIndex;
+                log.laneIndex = laneIndex;
+                this.logs.push(log);
+            } else {
+                // Remove log if it's too far outside boundaries
+                this.disposeMesh(log);
+                this.scene.remove(log);
+            }
+        }
+    }
+
+    
+
+    calculateLogStartPosition(laneIndex, indexInGroup) {
+        const config = this.logConfigs[laneIndex];
+        const startSide = config.speed > 0 ? -1 : 1;
+        const startX = (startSide * (this.gridSize.width * this.cellSize / 2)) - 
+                      (startSide * indexInGroup * config.spacing * config.size);
+        return startX;
+    }
+
+
+    createTurtleMesh() {
+        const turtleGroup = new THREE.Group();
+
+        // Materials
+        const shellMaterial = new THREE.MeshPhongMaterial({
+            color: 0x8B4513,  // Brown shell
+            clippingPlanes: this.clippingPlanes,
+            clipShadows: true
+        });
+
+        const skinMaterial = new THREE.MeshPhongMaterial({
+            color: 0x90EE90,  // Light green for skin
+            clippingPlanes: this.clippingPlanes,
+            clipShadows: true
+        });
+
+        // Create shell (main body)
+        const shellGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.15, 32);
+        const shell = new THREE.Mesh(shellGeometry, shellMaterial);
+        shell.rotation.x = Math.PI / 2;
+        
+        // Create shell top (dome)
+        const shellTopGeometry = new THREE.SphereGeometry(0.4, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        const shellTop = new THREE.Mesh(shellTopGeometry, shellMaterial);
+        shellTop.position.y = 0.075;
+        shellTop.rotation.x = Math.PI;
+
+        // Create head
+        const headGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.2);
+        const head = new THREE.Mesh(headGeometry, skinMaterial);
+        head.position.set(0.4, 0, 0); // Position at front
+
+        // Create legs (4 legs)
+        const legGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.2);
+        const legPositions = [
+            { x: 0.25, z: 0.25 },  // Front right
+            { x: 0.25, z: -0.25 }, // Front left
+            { x: -0.25, z: 0.25 }, // Back right
+            { x: -0.25, z: -0.25 } // Back left
+        ];
+
+        legPositions.forEach(pos => {
+            const leg = new THREE.Mesh(legGeometry, skinMaterial);
+            leg.position.set(pos.x, -0.05, pos.z);
+            turtleGroup.add(leg);
+        });
+
+        // Add shell parts to group
+        turtleGroup.add(shell);
+        turtleGroup.add(shellTop);
+        turtleGroup.add(head);
+
+        // Store original colors for warning state
+        turtleGroup.userData.originalColors = {
+            shell: shellMaterial.color.getHex(),
+            skin: skinMaterial.color.getHex()
+        };
+
+        return turtleGroup;
+    }
+
+    createLog(lane, speed, size) {
+        const laneIndex = this.lanes.river.indexOf(lane);
+        const config = this.logConfigs[laneIndex];
+        const isTurtle = config.isTurtle;
+
+        if (isTurtle) {
+            // Create a group to hold multiple turtles
+            const turtleGroup = new THREE.Group();
+            const turtleSize = 1; // Base size of each turtle
+            const spacing = 0.2; // Space between turtles
+            
+            // Create individual turtles to match the log size
+            for (let i = 0; i < size; i++) {
+                const singleTurtle = this.createSingleTurtle();
+                singleTurtle.position.x = i * (turtleSize + spacing);
+                turtleGroup.add(singleTurtle);
+            }
+
+            turtleGroup.position.z = (lane - this.gridSize.height / 2 + 0.5) * this.cellSize;
+            turtleGroup.position.y = 0.2;
+            turtleGroup.speed = speed;
+            turtleGroup.size = size * (turtleSize + spacing);
+            turtleGroup.isTurtle = true;
+            turtleGroup.laneIndex = laneIndex;
+            
+            // Group tracking information
+            turtleGroup.userData.groupInfo = {
+                lane: laneIndex,
+                isFirstGroup: false, // Set in updateTurtles
+            };
+
+            turtleGroup.submersionState = {
+                isSubmerged: false,
+                isWarning: false,
+                lastSubmersionTime: Date.now()
+            };
+
+            this.scene.add(turtleGroup);
+            return turtleGroup;
+        } else {
+            
+            const geometry = new THREE.BoxGeometry(size, 0.2, 0.8);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0x8b4513,
+                clippingPlanes: this.clippingPlanes,
+                clipShadows: true
+            });
+            const log = new THREE.Mesh(geometry, material);
+            log.position.z = (lane - this.gridSize.height / 2 + 0.5) * this.cellSize;
+            log.position.y = 0.2;
+            log.speed = speed;
+            log.size = size;
+            log.isTurtle = false;
+            
+            this.scene.add(log);
+            return log;
+        }
+    }
+
+    createSingleTurtle() {
+        const turtleGroup = new THREE.Group();
+        
+        // Materials with stored original colors
+        const shellMaterial = new THREE.MeshPhongMaterial({
+            color: 0x2E8B57, // Dark green for shell
+            clippingPlanes: this.clippingPlanes,
+            clipShadows: true
+        });
+        
+        const skinMaterial = new THREE.MeshPhongMaterial({
+            color: 0x90EE90, // Light green for head, legs, tail
+            clippingPlanes: this.clippingPlanes,
+            clipShadows: true
+        });
+
+        // Store original colors and materials in userData
+        turtleGroup.userData = {
+            originalColors: {
+                shell: 0x2E8B57,
+                skin: 0x90EE90
+            },
+            materials: {
+                shell: shellMaterial,
+                skin: skinMaterial
+            },
+            submersionProgress: 0 // Track submersion progress
+        };
+
+        // Main shell (slightly domed using a cylinder)
+        const shellGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 32);
+        const shell = new THREE.Mesh(shellGeometry, shellMaterial);
+        shell.rotation.x = Math.PI / 2;
+        shell.scale.z = 0.8; // Make it slightly oval
+        shell.userData.type = 'shell';
+        turtleGroup.add(shell);
+
+        // Head
+        const headGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.15);
+        const head = new THREE.Mesh(headGeometry, skinMaterial);
+        head.position.set(-0.5, 0, 0); // Position at front
+        head.userData.type = 'extremity';
+        head.userData.order = 0; // First to submerge
+        turtleGroup.add(head);
+
+        // Tail
+        const tailGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.1);
+        const tail = new THREE.Mesh(tailGeometry, skinMaterial);
+        tail.position.set(0.5, 0, 0); // Position at back
+        tail.userData.type = 'extremity';
+        tail.userData.order = 0; // First to submerge
+        turtleGroup.add(tail);
+
+        // Legs with different submersion orders
+        const legGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.2);
+        const legPositions = [
+            { x: 0.25, z: 0.3, order: 0 },  // Front right
+            { x: 0.25, z: -0.3, order: 0 }, // Front left
+            { x: -0.25, z: 0.3, order: 0 }, // Back right
+            { x: -0.25, z: -0.3, order: 0 } // Back left
+        ];
+
+        legPositions.forEach(pos => {
+            const leg = new THREE.Mesh(legGeometry, skinMaterial);
+            leg.position.set(pos.x, 0, pos.z);
+            leg.userData.type = 'extremity';
+            leg.userData.order = pos.order; // Order of submersion
+            turtleGroup.add(leg);
+        });
+
+        return turtleGroup;
+    }
+
+    updateTurtles(deltaTime) {
+        const currentTime = Date.now();
+        
+        this.logs.forEach(platform => {
+            if (!platform.isTurtle) return;
+
+            const config = this.logConfigs[platform.laneIndex];
+            if (!config || !config.submersionConfig) return;
+
+            // Check if platform is within visible boundaries (with buffer)
+            const isVisible = this.isWithinBoundaries(platform.position.x, platform.size);
+            
+            // Initialize or reset submersion state when platform becomes visible
+            if (isVisible && (!platform.wasVisible || !platform.submersionState)) {
+                platform.submersionState = {
+                    isSubmerged: false,
+                    isWarning: false,
+                    lastSubmersionTime: currentTime // Start fresh timing when entering screen
+                };
+                platform.position.y = 0.2; // Ensure correct starting position
+                platform.wasVisible = true; // Track visibility state
+                
+                // Reset colors to normal
+                platform.children.forEach(turtle => {
+                    turtle.children.forEach(part => {
+                        if (part.material) {
+                            if (part.userData.type === 'shell') {
+                                part.material.color.setHex(turtle.userData.originalColors.shell);
+                            } else {
+                                part.material.color.setHex(turtle.userData.originalColors.skin);
+                            }
+                        }
+                    });
+                });
+                return; // Skip first frame to ensure proper initialization
+            }
+
+            // Reset visibility tracking when platform goes off screen
+            if (!isVisible) {
+                platform.wasVisible = false;
+                return;
+            }
+
+            // Check if this is the first visible group of turtles in the lane
+            const isFirstGroup = this.isFirstTurtleGroup(platform);
+            
+            // For non-first groups, ensure they stay visible and maintain original colors
+            if (!isFirstGroup) {
+                platform.position.y = 0.2;
+                platform.submersionState.isSubmerged = false;
+                platform.submersionState.isWarning = false;
+                
+                platform.children.forEach(turtle => {
+                    turtle.children.forEach(part => {
+                        if (part.material) {
+                            if (part.userData.type === 'shell') {
+                                part.material.color.setHex(turtle.userData.originalColors.shell);
+                            } else {
+                                part.material.color.setHex(turtle.userData.originalColors.skin);
+                            }
+                        }
+                    });
+                });
+                return;
+            }
+
+            const submersionConfig = config.submersionConfig;
+            const timeSinceLastSubmersion = currentTime - platform.submersionState.lastSubmersionTime;
+            const emersionDuration = submersionConfig.warningDuration;
+
+            if (platform.submersionState.isSubmerged) {
+                const timeSubmerged = timeSinceLastSubmersion - submersionConfig.interval;
+                if (timeSubmerged >= submersionConfig.duration) {
+                    // Emersion phase
+                    const emersionTime = timeSubmerged - submersionConfig.duration;
+                    const emersionPhase = Math.min(emersionTime / emersionDuration, 1);
+                    
+                    platform.children.forEach(turtle => {
+                        this.updateTurtleEmersion(turtle, emersionPhase);
+                    });
+
+                    if (emersionPhase >= 1) {
+                        platform.submersionState.isSubmerged = false;
+                        platform.position.y = 0.2;
+                        platform.submersionState.lastSubmersionTime = currentTime;
+                    } else {
+                        platform.position.y = -0.5 + (0.7 * emersionPhase);
+                    }
+                }
+            } else if (timeSinceLastSubmersion >= submersionConfig.interval - submersionConfig.warningDuration) {
+                const warningTime = timeSinceLastSubmersion - (submersionConfig.interval - submersionConfig.warningDuration);
+                const warningPhase = Math.min(warningTime / submersionConfig.warningDuration, 1);
+
+                platform.children.forEach(turtle => {
+                    this.updateTurtleSubmersion(turtle, warningPhase);
+                });
+
+                if (warningPhase > 0) {
+                    platform.position.y = 0.2 - (0.7 * warningPhase);
+                }
+
+                if (timeSinceLastSubmersion >= submersionConfig.interval) {
+                    platform.submersionState.isSubmerged = true;
+                    platform.position.y = -0.5;
+                    
+                    if (this.currentLog === platform) {
+                        this.gameOver('Turtles submerged!');
+                    }
+                }
+            } else {
+                // Reset colors when not in submersion or warning state
+                platform.children.forEach(turtle => {
+                    turtle.children.forEach(part => {
+                        if (part.material) {
+                            if (part.userData.type === 'shell') {
+                                part.material.color.setHex(turtle.userData.originalColors.shell);
+                            } else {
+                                part.material.color.setHex(turtle.userData.originalColors.skin);
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    isFirstTurtleGroup(platform) {
+        // Find all turtle platforms in the same lane
+        const sameLanePlatforms = this.logs.filter(p =>
+            p.isTurtle && 
+            p.laneIndex === platform.laneIndex &&
+            this.isWithinBoundaries(p.position.x, platform.size) // Only consider visible platforms
+        );
+        
+        // Sort platforms by x position considering movement direction
+        sameLanePlatforms.sort((a, b) => {
+            if (a.speed < 0) {
+                return a.position.x - b.position.x; // Leftmost first for right-to-left movement
+            }
+            return b.position.x - a.position.x; // Rightmost first for left-to-right movement
+        });
+        
+        // The first group is the one closest to the entry point
+        return sameLanePlatforms[0] === platform;
+    }
+    
+    updateTurtleEmersion(turtle, phase) {
+        const WATER_COLOR = 0x000080; // Dark blue color for underwater effect
+        
+        turtle.children.forEach(part => {
+            let partPhase = phase;
+            
+            // Adjust phase based on part type and order (reverse of submersion)
+            if (part.userData.type === 'shell') {
+                // Shell emerges first
+                partPhase = Math.min(phase * 1.5, 1);
+            } else if (part.userData.type === 'extremity') {
+                // Extremities emerge later
+                partPhase = Math.max(phase - 0.3, 0);
+            }
+
+            // Get the original color for this part
+            const originalColor = new THREE.Color(
+                part.userData.type === 'shell' 
+                    ? turtle.userData.originalColors.shell 
+                    : turtle.userData.originalColors.skin
+            );
+            const waterColor = new THREE.Color(WATER_COLOR);
+
+            // Interpolate from water color to original color
+            const newColor = new THREE.Color();
+            newColor.r = waterColor.r + (originalColor.r - waterColor.r) * partPhase;
+            newColor.g = waterColor.g + (originalColor.g - waterColor.g) * partPhase;
+            newColor.b = waterColor.b + (originalColor.b - waterColor.b) * partPhase;
+
+            // Apply the new color
+            part.material.color.copy(newColor);
+        });
+    }
+
+    updateTurtleSubmersion(turtle, phase) {
+        const WATER_COLOR = 0x000080; 
+        
+        turtle.children.forEach(part => {
+            let partPhase = phase;
+            
+            if (part.userData.type === 'extremity') {
+                partPhase = Math.min(phase * 1.5, 1);
+            } else if (part.userData.type === 'shell') {
+                partPhase = Math.max(phase - 0.3, 0);
+            }
+
+            const originalColor = new THREE.Color(
+                part.userData.type === 'shell' 
+                    ? turtle.userData.originalColors.shell 
+                    : turtle.userData.originalColors.skin
+            );
+            const waterColor = new THREE.Color(WATER_COLOR);
+
+            const newColor = new THREE.Color();
+            newColor.r = originalColor.r + (waterColor.r - originalColor.r) * partPhase;
+            newColor.g = originalColor.g + (waterColor.g - originalColor.g) * partPhase;
+            newColor.b = originalColor.b + (waterColor.b - originalColor.b) * partPhase;
+
+            part.material.color.copy(newColor);
+        });
+    }
+  
+
+    
+
+    // Helper method to get first turtle group in a lane
+    getFirstTurtleGroup(laneIndex) {
+        const laneTurtles = this.logs.filter(platform => 
+            platform.isTurtle && 
+            platform.laneIndex === parseInt(laneIndex) &&
+            this.isWithinBoundaries(platform.position.x, platform.size)
+        );
+
+        if (!laneTurtles.length) return null;
+
+        // Sort based on movement direction
+        const config = this.logConfigs[laneIndex];
+        return config.speed < 0 
+            ? laneTurtles.sort((a, b) => a.position.x - b.position.x)[0]  // Leftmost for right-to-left
+            : laneTurtles.sort((a, b) => b.position.x - a.position.x)[0]; // Rightmost for left-to-right
+    }
+
+    // Helper methods for progress calculations
+    calculateWarningProgress(cycleTime, config) {
+        const warningStart = config.interval - config.warningDuration;
+        return (cycleTime - warningStart) / config.warningDuration;
+    }
+
+    calculateEmergingProgress(cycleTime, config) {
+        const emergingStart = config.interval + config.duration;
+        return (cycleTime - emergingStart) / config.warningDuration;
+    }
+
+
+    setupControls() {
+        document.addEventListener('keydown', (event) => {
+            if (this.isGameOver || this.gameOverDelay) return;
+            
+            const vertMovement = this.cellSize;
+            const horMovement = this.cellSize/3;
+            let moved = false;
+            let newPosition = this.frog.position.clone();
+            
+            switch(event.key) {
+                case 'ArrowUp':
+                    newPosition.z -= vertMovement;
+                    moved = true;
+                    break;
+                case 'ArrowDown':
+                    if (newPosition.z + vertMovement < (this.gridSize.height/2 * this.cellSize)) {
+                        newPosition.z += vertMovement;
+                        moved = true;
+                    }
+                    break;
+                case 'ArrowLeft':
+                    newPosition.x -= horMovement;
+                    moved = true;
+                    break;
+                case 'ArrowRight':
+                    newPosition.x += horMovement;
+                    moved = true;
+                    break;
+            }
+            
+            if (moved) {
+                // Update frog position
+                this.frog.position.copy(newPosition);
+                
+                // Check collisions after movement
+                this.checkCollisions();
+                this.checkWin();
+            }
+        });
+    }
+
+    // Method to reset turtle color
+    resetTurtleColors(turtle) {
+        turtle.children.forEach(part => {
+            if (part.userData.type === 'shell') {
+                part.material.color.setHex(turtle.userData.originalColors.shell);
+            } else {
+                part.material.color.setHex(turtle.userData.originalColors.skin);
+            }
+        });
+    }
+
+    checkWin() {
+        const frogRow = Math.floor((this.frog.position.z + this.gridSize.height / 2 * this.cellSize) / this.cellSize);
+        
+        if (frogRow === 1) {
+            let landedPond = null;
+            for (const pond of this.ponds) {
+                if (Math.abs(this.frog.position.x - pond.x) < this.cellSize/2) {
+                    landedPond = pond;
+                    break;
+                }
+            }
+            
+            if (landedPond) {
+                if (this.occupiedPonds.has(landedPond.index)) {
+                    this.gameOver('Pond already occupied!');
+                } else {
+                    this.createStaticFrog({
+                        x: landedPond.x,
+                        z: landedPond.z
+                    });
+                    this.occupiedPonds.add(landedPond.index);
+                    
+                    if (this.occupiedPonds.size === this.ponds.length) {
+                        this.victory();
+                    } else {
+                        this.score += this.scoreValues.pondLanding;
+                        document.getElementById('scoreValue').textContent = this.score;
+                        this.resetFrog();
+                    }
+                }
+            } else {
+                this.gameOver('Missed the pond!');
+            }
+        } else if (frogRow === 0) {
+            this.gameOver('Out of bounds!');
+        }
+    }
+
+
+    resetFrog() {
+        this.frog.position.set(0, 0.4, this.gridSize.height / 2 * this.cellSize - this.cellSize/2);
+    }
+
+
+    checkCollisions() {
+        // Check car collisions
+        this.cars.forEach(car => {
+            if (this.checkObjectCollision(this.frog, car)) {
+                this.gameOver('Hit by a car!');
+            }
+        });
+
+        // Reset current log
+        this.currentLog = null;
+
+        // Check river and log/turtle collisions
+        const frogLane = Math.floor((this.frog.position.z + this.gridSize.height / 2 * this.cellSize) / this.cellSize);
+        if (this.lanes.river.includes(frogLane)) {
+            let onPlatform = false;
+            
+            this.logs.forEach(platform => {
+                if (this.checkObjectCollision(this.frog, platform)) {
+                    onPlatform = true;
+                    this.currentLog = platform;
+
+                    // Check if the platform is a submerged turtle
+                    if (platform.isTurtle && platform.submersionState.isSubmerged) {
+                        this.gameOver('Turtles submerged!');
+                    }
+                }
+            });
+            
+            if (!onPlatform) {
+                this.gameOver('Fell in the river!');
+            }
+        }
+
+        // Check fly collisions
+        for (let i = this.flies.length - 1; i >= 0; i--) {
+            const fly = this.flies[i];
+            if (this.checkInsectCollision(this.frog, fly)) {
+                this.score += this.scoreValues.fly;
+                document.getElementById('scoreValue').textContent = this.score;
+                this.removeFly(fly, i);
+            }
+        }
+
+        // Check flying insect collisions
+        for (let i = this.flyingInsects.length - 1; i >= 0; i--) {
+            const insect = this.flyingInsects[i];
+            if (this.checkInsectCollision(this.frog, insect)) {
+                this.score += this.scoreValues.flyingInsect;
+                document.getElementById('scoreValue').textContent = this.score;
+                this.removeFlyingInsect(insect, i);
+            }
+        }
+
+        // Check boundaries
+        const boundaryBuffer = 0.2;
+        if (this.frog.position.x > this.gridSize.width * this.cellSize / 2 - boundaryBuffer ||
+            this.frog.position.x < -this.gridSize.width * this.cellSize / 2 + boundaryBuffer) {
+            this.gameOver('Out of bounds!');
+        }
+    }
+
+    checkInsectCollision(frog, insect) {
+        const maxDistance = 0.8; // Collision radius
+        const dx = frog.position.x - insect.position.x;
+        const dy = frog.position.y - insect.position.y;
+        const dz = frog.position.z - insect.position.z;
+        
+        // Calculate 3D distance between frog and insect
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        return distance < maxDistance;
+    }
+
+
+    checkObjectCollision(obj1, obj2) {
+        const tolerance = 1.0;
+        
+        // Get the width of the objects
+        let width1, width2;
+        let pos1 = obj1.position;
+        let pos2 = obj2.position;
+
+        // Handle width for frog
+        if (obj1 === this.frog) {
+            width1 = this.dimensions.frog.width;
+        } else {
+            width1 = obj1.geometry ? obj1.geometry.parameters.width : obj1.size;
+        }
+
+        // Handle width for turtle groups and logs
+        if (obj2.isTurtle) {
+            width2 = obj2.size; 
+        } else {
+            width2 = obj2.geometry ? obj2.geometry.parameters.width : 1.0;
+        }
+        
+        // Calculate the edges of both objects
+        const obj1Left = pos1.x - width1 / 2;
+        const obj1Right = pos1.x + width1 / 2;
+        const obj2Left = pos2.x - width2 / 2;
+        const obj2Right = pos2.x + width2 / 2;
+        
+        // Check for overlap in both X and Z axes
+        const xOverlap = !(obj1Right < obj2Left || obj1Left > obj2Right);
+        const zOverlap = Math.abs(pos1.z - pos2.z) < tolerance;
+        
+        return xOverlap && zOverlap;
+    }
+
+    victory() {
+        this.isGameOver = true;
+        document.getElementById('victory').style.display = 'block';
+    }
+
+    disposeMesh(mesh) {
+        if (mesh.geometry) {
+            mesh.geometry.dispose();
+        }
+        if (mesh.material) {
+            // Check if material is an array
+            if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(material => material.dispose());
+            } else {
+                mesh.material.dispose();
+            }
+        }
+    }
+
+
+    // Modify resetUIState method
+    resetUIState() {
+        document.getElementById('gameOverScreen').style.display = 'none';
+        document.getElementById('scoreValue').textContent = '0';
+        document.getElementById('gameOverReason').textContent = '';
+        document.getElementById('livesValue').textContent = '5';
+        document.getElementById('lifeMessage').style.display = 'none';
+    }
+
+    initializeGameState() {
+
+        this.lives = 5;
+        // Game properties remain the same
+        this.gridSize = {
+            width: 15,
+            height: 14
+        };
+        this.cellSize = 1;
+        this.lanes = {
+            safe: [0, 1],
+            road: [8, 9, 10, 11, 12],
+            river: [2, 3, 4, 5, 6]
+        };
+        
+        this.ponds = [];
+        this.occupiedPonds = new Set();
+        this.landedFrogs = [];
+        
+        this.frog = null;
+        this.cars = [];
+        this.logs = [];
+        this.currentLog = null;
+        
+        this.isGameOver = false;
+        this.gameOverDelay = false;
+        this.gameOverTimer = null;
+        this.gameOverReason = '';
+        this.score = 0;
+        
+        this.dimensions = {
+            frog: { width: 0.8 },
+            log: { width: 3.0 }
+        };
+    }
+
+    loseLife(reason) {
+        this.lives--;
+        document.getElementById('livesValue').textContent = this.lives;
+        
+        // Show life loss message
+        const lifeMessage = document.getElementById('lifeMessage');
+        lifeMessage.textContent = `Life lost: ${reason}`;
+        lifeMessage.style.display = 'block';
+        
+        // Hide message after animation
+        setTimeout(() => {
+            lifeMessage.style.display = 'none';
+        }, 2000);
+
+        if (this.lives <= 0) {
+            this.gameOver(reason);
+        } else {
+            // Reset frog position
+            this.resetFrog();
+            this.currentLog = null;
+        }
+    }
+
+    gameOver(reason) {
+        if (this.isGameOver || this.gameOverDelay) return;
+
+        if (reason === 'Fell in the river!' && this.lives > 0) {
+            this.gameOverDelay = true;
+            this.gameOverReason = reason;
+            this.frog.initialY = this.frog.position.y;
+            
+            this.gameOverTimer = setTimeout(() => {
+                this.gameOverDelay = false;
+                if (!this.isDestroyed) {
+                    this.loseLife(reason);
+                }
+            }, 800);
+        } else if (this.lives > 0) {
+            if (!this.isDestroyed) {
+                this.loseLife(reason);
+            }
+        } else {
+            this.isGameOver = true;
+            if (!this.isDestroyed) {
+                document.getElementById('gameOverScreen').style.display = 'block';
+                document.getElementById('gameOverReason').textContent = `Game Over! ${reason}`;
+            }
+        }
+    }
+
+    updateObjects() {
+        // Update cars
+        this.cars.forEach(car => {
+            car.position.x += car.speed;
+            
+            if (car.speed > 0 && car.position.x > this.boundaries.right + car.geometry.parameters.width) {
+                car.position.x = this.boundaries.left - car.geometry.parameters.width;
+            } else if (car.speed < 0 && car.position.x < this.boundaries.left - car.geometry.parameters.width) {
+                car.position.x = this.boundaries.right + car.geometry.parameters.width;
+            }
+        });
+
+        // Update logs and turtles
+        this.logs.forEach(platform => {
+            platform.position.x += platform.speed;
+            
+            // Wrap platform movement
+            if (platform.speed > 0 && platform.position.x > this.boundaries.right + platform.size) {
+                platform.position.x = this.boundaries.left - platform.size;
+            } else if (platform.speed < 0 && platform.position.x < this.boundaries.left - platform.size) {
+                platform.position.x = this.boundaries.right + platform.size;
+            }
+            
+            // Update frog position if it's on this platform
+            if (platform === this.currentLog && !platform.submersionState?.isSubmerged) {
+                this.frog.position.x += platform.speed;
+                
+                // Check if frog is still within bounds
+                const frogLeftEdge = this.frog.position.x - this.dimensions.frog.width / 2;
+                const frogRightEdge = this.frog.position.x + this.dimensions.frog.width / 2;
+                
+                if (frogLeftEdge < this.boundaries.left || frogRightEdge > this.boundaries.right) {
+                    this.gameOver('Fell off the platform!');
+                }
+            }
+        });
+    }
+
+    // Helper method to check if position is within game boundaries
+    isWithinBoundaries(x, margin = 0) {
+        return x >= this.boundaries.left - margin && x <= this.boundaries.right + margin;
+    }
+
+
+    animate() {
+        this.animationFrameId = requestAnimationFrame(() => this.animate());
+        
+        const deltaTime = 1/60;
+
+        if (!this.isGameOver && !this.gameOverDelay) {
+            this.updateObjects();
+            this.updateFlies(deltaTime);
+            this.updateFlyingInsects(deltaTime);
+            this.updateTurtles(deltaTime); 
+            this.checkCollisions();
+        } else if (this.gameOverDelay) {
+            if (this.frog.position.y > -0.4) {
+                this.frog.position.y -= 0.01;
+            }
+        }
+        
+        this.renderer.render(this.scene, this.camera);
+    }
+
+    cleanup() {
+        // Cancel any pending animations or timeouts
+        if (this.gameOverTimer) {
+            clearTimeout(this.gameOverTimer);
+            this.gameOverTimer = null;
+        }
+        
+        // Stop the animation loop
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+
+        // Clear game state
+        this.occupiedPonds.clear();
+        
+        // Remove landed frogs
+        this.landedFrogs.forEach(frog => {
+            this.disposeMesh(frog);
+        });
+        this.landedFrogs = [];
+
+        // Clean up flies
+        this.flies.forEach(fly => {
+            fly.children.forEach(child => {
+                this.disposeMesh(child);
+            });
+            this.scene.remove(fly);
+        });
+        this.flies = [];
+
+        // Clean up flying insects
+        this.flyingInsects.forEach(insect => {
+            insect.children.forEach(child => {
+                this.disposeMesh(child);
+            });
+            this.scene.remove(insect);
+        });
+        this.flyingInsects = [];
+
+        // Clean up specific game objects
+        if (this.frog) {
+            this.disposeMesh(this.frog);
+        }
+
+        this.cars.forEach(car => {
+            this.disposeMesh(car);
+        });
+        this.cars = [];
+
+        this.logs.forEach(log => {
+            this.disposeMesh(log);
+        });
+        this.logs = [];
+
+        // Clean up remaining scene objects
+        while(this.scene.children.length > 0) { 
+            const object = this.scene.children[0];
+            this.disposeMesh(object);
+            this.scene.remove(object);
+        }
+
+        // Reset game state
+        this.isGameOver = false;
+        this.gameOverDelay = false;
+        this.currentLog = null;
+        this.score = 0;
+    }
+}
+
+
+
+function restartGame() {
+    // Set flag on existing game instance
+    if (game) {
+        game.isDestroyed = true;
+        game.cleanup();
+        // Remove the renderer from the DOM
+        if (game.renderer && game.renderer.domElement) {
+            document.body.removeChild(game.renderer.domElement);
+        }
+    }
+    
+    // Create new game instance
+    game = new Frogger3D();
+}
+
+// Start the game
+
+// Initialize game handler
+let game = null;
+
+function restartGame() {
+    // Show rules panel when restarting
+    document.getElementById('rulesPanel').style.display = 'block';
+    
+    // Set flag on existing game instance
+    if (game) {
+        game.isDestroyed = true;
+        game.cleanup();
+        if (game.renderer && game.renderer.domElement) {
+            document.body.removeChild(game.renderer.domElement);
+        }
+    }
+    
+    // Create new game instance
+    game = new Frogger3D();
+}
+
+// Start the game
+
+restartGame();
+    </script>
+</body>
+</html>
